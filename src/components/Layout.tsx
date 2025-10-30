@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Car, Users, LogOut } from "lucide-react";
+import { Home, Car, Users, LogOut, Wrench, Fuel, FileText, MapPin, ClipboardCheck, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -20,9 +20,15 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   const navItems = [
-    { path: "/", icon: Home, label: "Tableau de bord" },
+    { path: "/", icon: Home, label: "Dashboard" },
     { path: "/vehicles", icon: Car, label: "Véhicules" },
     { path: "/drivers", icon: Users, label: "Conducteurs" },
+    { path: "/maintenance", icon: Wrench, label: "Maintenance" },
+    { path: "/fuel", icon: Fuel, label: "Carburant" },
+    { path: "/documents", icon: FileText, label: "Documents" },
+    { path: "/tours", icon: MapPin, label: "Tournées" },
+    { path: "/inspections", icon: ClipboardCheck, label: "Inspections" },
+    { path: "/reports", icon: BarChart3, label: "Rapports" },
   ];
 
   return (

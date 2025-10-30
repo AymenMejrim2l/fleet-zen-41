@@ -8,6 +8,12 @@ import { supabase } from "@/integrations/supabase/client";
 import Dashboard from "./pages/Dashboard";
 import Vehicles from "./pages/Vehicles";
 import Drivers from "./pages/Drivers";
+import Maintenance from "./pages/Maintenance";
+import Fuel from "./pages/Fuel";
+import Documents from "./pages/Documents";
+import Tours from "./pages/Tours";
+import Inspections from "./pages/Inspections";
+import Reports from "./pages/Reports";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Layout from "./components/Layout";
@@ -51,6 +57,12 @@ const App = () => (
           <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
           <Route path="/drivers" element={<ProtectedRoute><Drivers /></ProtectedRoute>} />
+          <Route path="/maintenance" element={<ProtectedRoute><Maintenance /></ProtectedRoute>} />
+          <Route path="/fuel" element={<ProtectedRoute><Fuel /></ProtectedRoute>} />
+          <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
+          <Route path="/tours" element={<ProtectedRoute><Tours /></ProtectedRoute>} />
+          <Route path="/inspections" element={<ProtectedRoute><Inspections /></ProtectedRoute>} />
+          <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
