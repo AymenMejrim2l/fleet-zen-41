@@ -14,7 +14,160 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      drivers: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          first_name: string
+          hire_date: string | null
+          id: string
+          last_name: string
+          license_expiry: string | null
+          license_number: string
+          notes: string | null
+          phone: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          first_name: string
+          hire_date?: string | null
+          id?: string
+          last_name: string
+          license_expiry?: string | null
+          license_number: string
+          notes?: string | null
+          phone?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          first_name?: string
+          hire_date?: string | null
+          id?: string
+          last_name?: string
+          license_expiry?: string | null
+          license_number?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drivers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          id: string
+          last_name?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      vehicles: {
+        Row: {
+          acquisition_date: string | null
+          color: string | null
+          created_at: string | null
+          fuel_type: string | null
+          id: string
+          last_service_date: string | null
+          make: string
+          mileage: number | null
+          model: string
+          next_service_date: string | null
+          notes: string | null
+          registration: string
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+          vin: string | null
+          year: number | null
+        }
+        Insert: {
+          acquisition_date?: string | null
+          color?: string | null
+          created_at?: string | null
+          fuel_type?: string | null
+          id?: string
+          last_service_date?: string | null
+          make: string
+          mileage?: number | null
+          model: string
+          next_service_date?: string | null
+          notes?: string | null
+          registration: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          vin?: string | null
+          year?: number | null
+        }
+        Update: {
+          acquisition_date?: string | null
+          color?: string | null
+          created_at?: string | null
+          fuel_type?: string | null
+          id?: string
+          last_service_date?: string | null
+          make?: string
+          mileage?: number | null
+          model?: string
+          next_service_date?: string | null
+          notes?: string | null
+          registration?: string
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          vin?: string | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
