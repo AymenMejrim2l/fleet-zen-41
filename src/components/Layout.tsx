@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, Car, Users, LogOut, Wrench, Fuel, FileText, MapPin, ClipboardCheck, BarChart3, Shield } from "lucide-react";
+import { Home, Car, Users, LogOut, Wrench, Fuel, FileText, MapPin, ClipboardCheck, BarChart3, Shield, Bell, Calendar, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -30,6 +30,9 @@ const Layout = ({ children }: LayoutProps) => {
     { path: "/tours", icon: MapPin, label: "Tournées", resource: "tours" as const },
     { path: "/inspections", icon: ClipboardCheck, label: "Inspections", resource: "inspections" as const },
     { path: "/reports", icon: BarChart3, label: "Rapports", resource: "reports" as const },
+    { path: "/planning", icon: Calendar, label: "Planning", resource: null },
+    { path: "/analytics", icon: TrendingUp, label: "Analytics", resource: null },
+    { path: "/notifications", icon: Bell, label: "Notifications", resource: null },
     ...(isAdmin ? [{ path: "/admin", icon: Shield, label: "Administration", resource: null }] : []),
   ];
 

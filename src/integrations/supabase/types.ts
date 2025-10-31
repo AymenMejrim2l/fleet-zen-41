@@ -55,6 +55,63 @@ export type Database = {
           },
         ]
       }
+      analytics_cache: {
+        Row: {
+          cost_per_km: number | null
+          created_at: string | null
+          driver_id: string | null
+          id: string
+          period_end: string
+          period_start: string
+          total_distance: number | null
+          total_fuel_cost: number | null
+          total_maintenance_cost: number | null
+          user_id: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          cost_per_km?: number | null
+          created_at?: string | null
+          driver_id?: string | null
+          id?: string
+          period_end: string
+          period_start: string
+          total_distance?: number | null
+          total_fuel_cost?: number | null
+          total_maintenance_cost?: number | null
+          user_id: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          cost_per_km?: number | null
+          created_at?: string | null
+          driver_id?: string | null
+          id?: string
+          period_end?: string
+          period_start?: string
+          total_distance?: number | null
+          total_fuel_cost?: number | null
+          total_maintenance_cost?: number | null
+          user_id?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_cache_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analytics_cache_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           created_at: string | null
@@ -386,6 +443,39 @@ export type Database = {
           },
         ]
       }
+      notification_settings: {
+        Row: {
+          created_at: string | null
+          document_days_before: number | null
+          email_enabled: boolean | null
+          fuel_consumption_threshold: number | null
+          id: string
+          maintenance_days_before: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          document_days_before?: number | null
+          email_enabled?: boolean | null
+          fuel_consumption_threshold?: number | null
+          id?: string
+          maintenance_days_before?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          document_days_before?: number | null
+          email_enabled?: boolean | null
+          fuel_consumption_threshold?: number | null
+          id?: string
+          maintenance_days_before?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string | null
@@ -660,9 +750,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_expiring_documents: {
+        Args: never
+        Returns: {
+          days_until_expiry: number
+          document_id: string
+          entity_type: string
+          expiry_date: string
+          title: string
+        }[]
+      }
       check_permission: {
         Args: { _action: string; _resource: string; _user_id: string }
         Returns: boolean
+      }
+      check_upcoming_maintenance: {
+        Args: never
+        Returns: {
+          days_until_maintenance: number
+          scheduled_date: string
+          vehicle_id: string
+          vehicle_name: string
+        }[]
       }
       has_role: {
         Args: {
