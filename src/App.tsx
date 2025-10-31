@@ -14,6 +14,7 @@ import Documents from "./pages/Documents";
 import Tours from "./pages/Tours";
 import Inspections from "./pages/Inspections";
 import Reports from "./pages/Reports";
+import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Layout from "./components/Layout";
@@ -63,6 +64,7 @@ const App = () => (
           <Route path="/tours" element={<ProtectedRoute><Tours /></ProtectedRoute>} />
           <Route path="/inspections" element={<ProtectedRoute><Inspections /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

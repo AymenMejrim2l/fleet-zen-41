@@ -1,9 +1,9 @@
-import { Link, useLocation } from "react-router-dom";
-import { Home, Car, Users, LogOut, Wrench, Fuel, FileText, MapPin, ClipboardCheck, BarChart3 } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Home, Car, Users, LogOut, Wrench, Fuel, FileText, MapPin, ClipboardCheck, BarChart3, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,6 +12,7 @@ interface LayoutProps {
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { canView, isAdmin } = usePermissions();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -20,15 +21,16 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   const navItems = [
-    { path: "/", icon: Home, label: "Dashboard" },
-    { path: "/vehicles", icon: Car, label: "Véhicules" },
-    { path: "/drivers", icon: Users, label: "Conducteurs" },
-    { path: "/maintenance", icon: Wrench, label: "Maintenance" },
-    { path: "/fuel", icon: Fuel, label: "Carburant" },
-    { path: "/documents", icon: FileText, label: "Documents" },
-    { path: "/tours", icon: MapPin, label: "Tournées" },
-    { path: "/inspections", icon: ClipboardCheck, label: "Inspections" },
-    { path: "/reports", icon: BarChart3, label: "Rapports" },
+    { path: "/", icon: Home, label: "Dashboard", resource: null },
+    { path: "/vehicles", icon: Car, label: "Véhicules", resource: "vehicles" as const },
+    { path: "/drivers", icon: Users, label: "Conducteurs", resource: "drivers" as const },
+    { path: "/maintenance", icon: Wrench, label: "Maintenance", resource: "maintenance" as const },
+    { path: "/fuel", icon: Fuel, label: "Carburant", resource: "fuel" as const },
+    { path: "/documents", icon: FileText, label: "Documents", resource: "documents" as const },
+    { path: "/tours", icon: MapPin, label: "Tournées", resource: "tours" as const },
+    { path: "/inspections", icon: ClipboardCheck, label: "Inspections", resource: "inspections" as const },
+    { path: "/reports", icon: BarChart3, label: "Rapports", resource: "reports" as const },
+    ...(isAdmin ? [{ path: "/admin", icon: Shield, label: "Administration", resource: null }] : []),
   ];
 
   return (
@@ -44,21 +46,25 @@ const Layout = ({ children }: LayoutProps) => {
 
         <nav className="flex-1 space-y-2">
           {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location.pathname === item.path;
-            return (
-              <Link key={item.path} to={item.path}>
-                <Button
-                  variant={isActive ? "default" : "ghost"}
-                  className={`w-full justify-start gap-3 ${
-                    isActive ? "gradient-brand text-white" : ""
-                  }`}
-                >
-                  <Icon className="h-5 w-5" />
-                  {item.label}
-                </Button>
-              </Link>
-            );
+            // Show dashboard and admin to everyone (admin is filtered above)
+            if (!item.resource || canView(item.resource)) {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.path;
+              return (
+                <Link key={item.path} to={item.path}>
+                  <Button
+                    variant={isActive ? "default" : "ghost"}
+                    className={`w-full justify-start gap-3 ${
+                      isActive ? "gradient-brand text-white" : ""
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {item.label}
+                  </Button>
+                </Link>
+              );
+            }
+            return null;
           })}
         </nav>
 
