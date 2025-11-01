@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -40,11 +41,14 @@ const Layout = ({ children }: LayoutProps) => {
     <div className="min-h-screen flex">
       {/* Sidebar */}
       <aside className="w-64 glass border-r border-white/20 p-6 flex flex-col animate-slide-up">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold gradient-brand bg-clip-text text-transparent">
-            FleetManager
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">Gestion de Flotte</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold gradient-brand bg-clip-text text-transparent">
+              FleetManager
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">Gestion de Flotte</p>
+          </div>
+          <ThemeToggle />
         </div>
 
         <nav className="flex-1 space-y-2">
