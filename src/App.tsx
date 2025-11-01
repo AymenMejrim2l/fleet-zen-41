@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeProvider } from "next-themes";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import Dashboard from "./pages/Dashboard";
 import Vehicles from "./pages/Vehicles";
 import Drivers from "./pages/Drivers";
@@ -20,6 +21,7 @@ import Analytics from "./pages/Analytics";
 import Notifications from "./pages/Notifications";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 import Layout from "./components/Layout";
 
@@ -57,9 +59,11 @@ const App = () => (
       <TooltipProvider delayDuration={300} skipDelayDuration={100}>
         <Toaster />
         <Sonner />
+        <InstallPrompt />
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/install" element={<Install />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
             <Route path="/drivers" element={<ProtectedRoute><Drivers /></ProtectedRoute>} />
