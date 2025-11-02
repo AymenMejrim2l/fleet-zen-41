@@ -31,7 +31,13 @@ const Layout = ({ children }: LayoutProps) => {
     }
   }, [isOnline]);
 
+  // Fermer le menu mobile lors du changement de route
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
+
   const handleLogout = async () => {
+    setMobileMenuOpen(false);
     await supabase.auth.signOut();
     toast.success("Déconnexion réussie");
     navigate("/auth");
