@@ -215,15 +215,77 @@
     }
   }
 
-  /* Smooth scrolling for mobile */
+  /* Smooth scrolling and touch optimization */
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   @media (max-width: 768px) {
     * {
       -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
     }
     
     html {
       -webkit-text-size-adjust: 100%;
     }
+
+    /* Minimum touch target sizes (44px minimum) */
+    button:not(.no-touch-target),
+    a:not(.no-touch-target),
+    [role="button"]:not(.no-touch-target) {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    /* Better spacing for forms */
+    form {
+      padding: 1rem;
+    }
+
+    /* Larger text inputs on mobile to prevent zoom on iOS */
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="number"],
+    input[type="password"],
+    input[type="search"],
+    input[type="url"],
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+
+    /* Optimize table scroll */
+    .table-container {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Card spacing for mobile */
+    .mobile-card-spacing > * + * {
+      margin-top: 0.75rem;
+    }
+
+    /* Better hit areas for interactive elements */
+    label {
+      display: block;
+      padding: 0.5rem 0;
+      cursor: pointer;
+    }
+  }
+
+  /* Focus styles for accessibility */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* Touch manipulation for better tap response */
+  .touch-target {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
