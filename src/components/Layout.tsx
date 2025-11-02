@@ -6,7 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { useState } from "react";
+import { NetworkStatus } from "@/components/NetworkStatus";
+import { useState, useEffect } from "react";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { offlineQueue } from "@/lib/offlineQueue";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,6 +20,16 @@ const Layout = ({ children }: LayoutProps) => {
   const navigate = useNavigate();
   const { canView, isAdmin } = usePermissions();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isOnline = useOnlineStatus();
+
+  useEffect(() => {
+    if (isOnline) {
+      offlineQueue.process(async (action) => {
+        console.log("Processing offline action:", action);
+        // Traiter les actions mises en file d'attente
+      });
+    }
+  }, [isOnline]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -88,6 +101,8 @@ const Layout = ({ children }: LayoutProps) => {
 
   return (
     <div className="min-h-screen flex w-full">
+      <NetworkStatus />
+      
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 glass border-r border-white/20 p-6 flex-col animate-slide-up">
         <NavigationContent />
