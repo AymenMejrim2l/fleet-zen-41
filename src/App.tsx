@@ -59,8 +59,8 @@ const App = () => (
       <TooltipProvider delayDuration={300} skipDelayDuration={100}>
         <Toaster />
         <Sonner />
-        <InstallPrompt />
         <BrowserRouter>
+          <InstallPrompt />
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/install" element={<Install />} />
