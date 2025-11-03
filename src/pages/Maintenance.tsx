@@ -253,7 +253,7 @@ const Maintenance = () => {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Véhicule</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Sélectionner un véhicule" />
@@ -277,7 +277,7 @@ const Maintenance = () => {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Type</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Type de maintenance" />
@@ -299,7 +299,7 @@ const Maintenance = () => {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Statut</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Statut" />
@@ -415,7 +415,18 @@ const Maintenance = () => {
                     variant="ghost"
                     onClick={() => {
                       setEditingMaintenance(maintenance);
-                      form.reset(maintenance);
+                      form.reset({
+                        vehicle_id: maintenance.vehicle_id,
+                        type: maintenance.type,
+                        description: maintenance.description || "",
+                        cost: maintenance.cost ? Number(maintenance.cost) : undefined,
+                        provider: maintenance.provider || "",
+                        status: maintenance.status,
+                        scheduled_date: maintenance.scheduled_date || "",
+                        completed_date: maintenance.completed_date || "",
+                        mileage: maintenance.mileage ? Number(maintenance.mileage) : undefined,
+                        notes: maintenance.notes || "",
+                      });
                       setIsDialogOpen(true);
                     }}
                   >
