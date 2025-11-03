@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, UserPlus, Settings, Users } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -209,6 +209,9 @@ const Admin = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Créer un nouvel utilisateur</DialogTitle>
+                <DialogDescription>
+                  Créer un nouveau compte utilisateur avec email et mot de passe
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-4">
                 <div>
@@ -277,6 +280,9 @@ const Admin = () => {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Assigner un rôle</DialogTitle>
+                <DialogDescription>
+                  Sélectionner un utilisateur et assigner un rôle
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-4">
                 <div>

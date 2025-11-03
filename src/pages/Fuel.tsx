@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, Fuel as FuelIcon, TrendingUp } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -230,6 +231,9 @@ const Fuel = () => {
               <DialogTitle>
                 {editingRecord ? "Modifier le ravitaillement" : "Nouveau ravitaillement"}
               </DialogTitle>
+              <DialogDescription>
+                {editingRecord ? "Modifier les informations du ravitaillement" : "Enregistrer un nouveau ravitaillement"}
+              </DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

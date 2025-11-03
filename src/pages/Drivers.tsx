@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -182,6 +183,9 @@ const Drivers = () => {
               <DialogTitle>
                 {editingDriver ? "Modifier le conducteur" : "Nouveau conducteur"}
               </DialogTitle>
+              <DialogDescription>
+                {editingDriver ? "Modifier les informations du conducteur" : "Ajouter un nouveau conducteur"}
+              </DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

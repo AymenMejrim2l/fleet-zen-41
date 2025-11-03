@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, Wrench, CheckCircle, Clock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -239,6 +240,9 @@ const Maintenance = () => {
               <DialogTitle>
                 {editingMaintenance ? "Modifier la maintenance" : "Nouvelle maintenance"}
               </DialogTitle>
+              <DialogDescription>
+                {editingMaintenance ? "Modifier les informations de la maintenance" : "Planifier une nouvelle maintenance"}
+              </DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

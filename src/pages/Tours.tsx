@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, MapPin, Play, CheckCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -260,6 +261,9 @@ const Tours = () => {
               <DialogTitle>
                 {editingTour ? "Modifier la tournée" : "Nouvelle tournée"}
               </DialogTitle>
+              <DialogDescription>
+                {editingTour ? "Modifier les informations de la tournée" : "Créer une nouvelle tournée"}
+              </DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

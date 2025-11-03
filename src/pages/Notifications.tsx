@@ -269,9 +269,10 @@ const Notifications = () => {
                 <Input
                   type="number"
                   value={settings.maintenance_days_before}
-                  onChange={(e) =>
-                    setSettings({ ...settings, maintenance_days_before: parseInt(e.target.value) })
-                  }
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    setSettings({ ...settings, maintenance_days_before: isNaN(value) ? 0 : value });
+                  }}
                 />
               </div>
 
@@ -280,9 +281,10 @@ const Notifications = () => {
                 <Input
                   type="number"
                   value={settings.document_days_before}
-                  onChange={(e) =>
-                    setSettings({ ...settings, document_days_before: parseInt(e.target.value) })
-                  }
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    setSettings({ ...settings, document_days_before: isNaN(value) ? 0 : value });
+                  }}
                 />
               </div>
 
@@ -292,9 +294,10 @@ const Notifications = () => {
                   type="number"
                   step="0.1"
                   value={settings.fuel_consumption_threshold}
-                  onChange={(e) =>
-                    setSettings({ ...settings, fuel_consumption_threshold: parseFloat(e.target.value) })
-                  }
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    setSettings({ ...settings, fuel_consumption_threshold: isNaN(value) ? 0 : value });
+                  }}
                 />
               </div>
 

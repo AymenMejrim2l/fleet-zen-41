@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, ClipboardCheck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -279,6 +280,9 @@ const Inspections = () => {
           <DialogContent className="glass max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Nouvelle inspection</DialogTitle>
+              <DialogDescription>
+                Créer une nouvelle inspection de véhicule
+              </DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">

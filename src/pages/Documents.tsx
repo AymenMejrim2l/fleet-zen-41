@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, FileText, AlertTriangle, CheckCircle } from "lucide
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -247,6 +248,9 @@ const Documents = () => {
               <DialogTitle>
                 {editingDocument ? "Modifier le document" : "Nouveau document"}
               </DialogTitle>
+              <DialogDescription>
+                {editingDocument ? "Modifier les informations du document" : "Ajouter un nouveau document au système"}
+              </DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

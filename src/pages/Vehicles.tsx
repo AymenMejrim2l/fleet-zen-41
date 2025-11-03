@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -191,6 +192,9 @@ const Vehicles = () => {
               <DialogTitle>
                 {editingVehicle ? "Modifier le véhicule" : "Nouveau véhicule"}
               </DialogTitle>
+              <DialogDescription>
+                {editingVehicle ? "Modifier les informations du véhicule" : "Ajouter un nouveau véhicule à la flotte"}
+              </DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
