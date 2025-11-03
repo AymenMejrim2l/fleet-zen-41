@@ -119,10 +119,15 @@ const Notifications = () => {
 
     const { error } = await supabase
       .from("notification_settings")
-      .upsert({
-        user_id: user.id,
-        ...settings,
-      });
+      .upsert(
+        {
+          user_id: user.id,
+          ...settings,
+        },
+        {
+          onConflict: 'user_id'
+        }
+      );
 
     if (error) {
       toast({ title: "Erreur", description: error.message, variant: "destructive" });
