@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Fuel, Wrench, FileText, TrendingUp } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 const Reports = () => {
   const [fuelStats, setFuelStats] = useState({ totalCost: 0, avgCost: 0 });
@@ -108,9 +109,9 @@ const Reports = () => {
             <Fuel className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{fuelStats.totalCost.toFixed(2)} €</div>
+            <div className="text-2xl font-bold">{formatCurrency(fuelStats.totalCost)}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Moyenne: {fuelStats.avgCost.toFixed(2)} €
+              Moyenne: {formatCurrency(fuelStats.avgCost)}
             </p>
           </CardContent>
         </Card>
@@ -141,7 +142,7 @@ const Reports = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {maintenanceStats.reduce((sum, s) => sum + s.totalCost, 0).toFixed(2)} €
+              {formatCurrency(maintenanceStats.reduce((sum, s) => sum + s.totalCost, 0))}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Total dépensé

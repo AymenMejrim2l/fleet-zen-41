@@ -29,8 +29,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const fuelSchema = z.object({
@@ -474,7 +476,7 @@ const Fuel = () => {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Coût</span>
-                <span className="font-medium">{Number(record.cost).toFixed(2)} €</span>
+                <span className="font-medium">{formatCurrency(record.cost)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Kilométrage</span>

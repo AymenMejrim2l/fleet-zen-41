@@ -32,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
 
 const maintenanceSchema = z.object({
   vehicle_id: z.string().min(1, "Véhicule requis"),
@@ -447,7 +448,7 @@ const Maintenance = () => {
               {maintenance.cost && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Coût</span>
-                  <span className="font-medium">{maintenance.cost.toFixed(2)} €</span>
+                  <span className="font-medium">{formatCurrency(maintenance.cost)}</span>
                 </div>
               )}
               {maintenance.provider && (

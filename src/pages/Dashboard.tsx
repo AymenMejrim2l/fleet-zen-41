@@ -77,7 +77,7 @@ const Dashboard = () => {
     },
     {
       title: "Coût Carburant",
-      value: "12 450 €",
+      value: "12 450 TND",
       subtitle: "+8% ce mois",
       icon: TrendingUp,
       gradient: "gradient-brand",

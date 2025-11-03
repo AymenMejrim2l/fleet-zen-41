@@ -7,6 +7,7 @@ import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Cart
 import { TrendingUp, DollarSign, Fuel, Wrench, Download, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
+import { formatCurrency } from "@/lib/utils";
 
 interface Vehicle {
   id: string;
@@ -230,7 +231,7 @@ const Analytics = () => {
             <Fuel className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalStats.totalFuel.toFixed(2)} €</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalStats.totalFuel)}</div>
             <p className="text-xs text-muted-foreground mt-1">Période sélectionnée</p>
           </CardContent>
         </Card>
@@ -241,7 +242,7 @@ const Analytics = () => {
             <Wrench className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalStats.totalMaintenance.toFixed(2)} €</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalStats.totalMaintenance)}</div>
             <p className="text-xs text-muted-foreground mt-1">Période sélectionnée</p>
           </CardContent>
         </Card>
@@ -252,7 +253,7 @@ const Analytics = () => {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalStats.avgCostPerKm.toFixed(3)} €</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalStats.avgCostPerKm, 3)}</div>
             <p className="text-xs text-muted-foreground mt-1">Moyenne flotte</p>
           </CardContent>
         </Card>
