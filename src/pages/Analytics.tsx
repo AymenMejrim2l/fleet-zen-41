@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -8,172 +7,71 @@ import { TrendingUp, DollarSign, Fuel, Wrench, Download, Calendar } from "lucide
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import { formatCurrency } from "@/lib/utils";
-
-interface Vehicle {
-  id: string;
-  make: string;
-  model: string;
-  registration: string;
-}
-
-interface CostAnalysis {
-  vehicleId: string;
-  vehicleName: string;
-  totalFuelCost: number;
-  totalMaintenanceCost: number;
-  totalDistance: number;
-  costPerKm: number;
-}
+import { useVehicles } from "@/hooks/useVehiclesQuery";
+import { calculateVehicleAnalytics, generateMonthlyData, VehicleAnalytics } from "@/services/analyticsService";
+import { ChartSkeleton, StatCardSkeleton } from "@/components/ui/skeleton-loader";
 
 const Analytics = () => {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<string>("all");
   const [period, setPeriod] = useState<string>("30");
-  const [costData, setCostData] = useState<CostAnalysis[]>([]);
+  const [costData, setCostData] = useState<VehicleAnalytics[]>([]);
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  const { data: vehiclesData } = useVehicles({ limit: 1000 });
+  const vehicles = vehiclesData?.vehicles || [];
+
   useEffect(() => {
-    loadVehicles();
     loadAnalytics();
   }, [selectedVehicle, period]);
 
-  const loadVehicles = async () => {
-    const { data } = await supabase
-      .from("vehicles")
-      .select("id, make, model, registration")
-      .eq("status", "active");
-    if (data) setVehicles(data);
-  };
-
   const loadAnalytics = async () => {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - parseInt(period));
+    setIsLoading(true);
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - parseInt(period));
 
-    // Load fuel costs
-    let fuelQuery = supabase
-      .from("fuel")
-      .select("vehicle_id, cost, volume, vehicles(make, model)")
-      .gte("date", startDate.toISOString().split('T')[0])
-      .lte("date", endDate.toISOString().split('T')[0]);
+      // Calculer les analytics avec le service optimisé
+      const vehicleId = selectedVehicle === "all" ? null : selectedVehicle;
+      const analytics = await calculateVehicleAnalytics(vehicleId, startDate, endDate);
+      setCostData(analytics);
 
-    if (selectedVehicle !== "all") {
-      fuelQuery = fuelQuery.eq("vehicle_id", selectedVehicle);
-    }
-
-    const { data: fuelData } = await fuelQuery;
-
-    // Load maintenance costs
-    let maintenanceQuery = supabase
-      .from("maintenance")
-      .select("vehicle_id, cost, vehicles(make, model)")
-      .gte("completed_date", startDate.toISOString().split('T')[0])
-      .lte("completed_date", endDate.toISOString().split('T')[0]);
-
-    if (selectedVehicle !== "all") {
-      maintenanceQuery = maintenanceQuery.eq("vehicle_id", selectedVehicle);
-    }
-
-    const { data: maintenanceData } = await maintenanceQuery;
-
-    // Aggregate data by vehicle
-    const vehicleCosts: Record<string, CostAnalysis> = {};
-
-    fuelData?.forEach((f: any) => {
-      const vehicleKey = f.vehicle_id;
-      if (!vehicleCosts[vehicleKey]) {
-        vehicleCosts[vehicleKey] = {
-          vehicleId: vehicleKey,
-          vehicleName: `${f.vehicles.make} ${f.vehicles.model}`,
-          totalFuelCost: 0,
-          totalMaintenanceCost: 0,
-          totalDistance: 0,
-          costPerKm: 0,
-        };
-      }
-      vehicleCosts[vehicleKey].totalFuelCost += parseFloat(f.cost) || 0;
-    });
-
-    maintenanceData?.forEach((m: any) => {
-      const vehicleKey = m.vehicle_id;
-      if (!vehicleCosts[vehicleKey]) {
-        vehicleCosts[vehicleKey] = {
-          vehicleId: vehicleKey,
-          vehicleName: `${m.vehicles.make} ${m.vehicles.model}`,
-          totalFuelCost: 0,
-          totalMaintenanceCost: 0,
-          totalDistance: 0,
-          costPerKm: 0,
-        };
-      }
-      vehicleCosts[vehicleKey].totalMaintenanceCost += parseFloat(m.cost) || 0;
-    });
-
-    // Calculate cost per km
-    for (const key in vehicleCosts) {
-      const vehicle = await supabase
-        .from("vehicles")
-        .select("mileage")
-        .eq("id", key)
-        .single();
-      
-      if (vehicle.data) {
-        vehicleCosts[key].totalDistance = vehicle.data.mileage || 0;
-        const totalCost = vehicleCosts[key].totalFuelCost + vehicleCosts[key].totalMaintenanceCost;
-        vehicleCosts[key].costPerKm = vehicleCosts[key].totalDistance > 0 
-          ? totalCost / vehicleCosts[key].totalDistance 
-          : 0;
-      }
-    }
-
-    setCostData(Object.values(vehicleCosts));
-    generateMonthlyData();
-  };
-
-  const generateMonthlyData = async () => {
-    const months = [];
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date();
-      date.setMonth(date.getMonth() - i);
-      const monthName = date.toLocaleDateString('fr-FR', { month: 'short' });
-      
-      const startDate = new Date(date.getFullYear(), date.getMonth(), 1);
-      const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-
-      const { data: fuelData } = await supabase
-        .from("fuel")
-        .select("cost")
-        .gte("date", startDate.toISOString().split('T')[0])
-        .lte("date", endDate.toISOString().split('T')[0]);
-
-      const { data: maintenanceData } = await supabase
-        .from("maintenance")
-        .select("cost")
-        .gte("completed_date", startDate.toISOString().split('T')[0])
-        .lte("completed_date", endDate.toISOString().split('T')[0]);
-
-      const fuelCost = fuelData?.reduce((sum, f) => sum + parseFloat(String(f.cost)), 0) || 0;
-      const maintenanceCost = maintenanceData?.reduce((sum, m) => sum + parseFloat(String(m.cost)), 0) || 0;
-
-      months.push({
-        month: monthName,
-        carburant: fuelCost,
-        maintenance: maintenanceCost,
+      // Générer les données mensuelles
+      const monthly = await generateMonthlyData(6);
+      setMonthlyData(monthly);
+    } catch (error) {
+      console.error("Error loading analytics:", error);
+      toast({ 
+        title: "Erreur", 
+        description: "Impossible de charger les analytics",
+        variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
-    setMonthlyData(months);
   };
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
   const exportToExcel = () => {
-    const worksheet = XLSX.utils.json_to_sheet(costData);
+    const exportData = costData.map(d => ({
+      "Véhicule": d.vehicleName,
+      "Coût Carburant (TND)": d.totalFuelCost.toFixed(2),
+      "Coût Maintenance (TND)": d.totalMaintenanceCost.toFixed(2),
+      "Distance Parcourue (km)": d.distancePeriod,
+      "Coût/km (TND)": d.costPerKm.toFixed(3),
+      "Consommation Moyenne (L/100km)": d.avgConsumption.toFixed(2),
+      "Volume Total (L)": d.totalFuelVolume.toFixed(2),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Analyse");
     XLSX.writeFile(workbook, `analyse-couts-${new Date().toISOString().split('T')[0]}.xlsx`);
     toast({ title: "Export réussi", description: "Le fichier Excel a été téléchargé" });
   };
-
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
   const totalStats = {
     totalFuel: costData.reduce((sum, v) => sum + v.totalFuelCost, 0),
@@ -181,7 +79,33 @@ const Analytics = () => {
     avgCostPerKm: costData.length > 0 
       ? costData.reduce((sum, v) => sum + v.costPerKm, 0) / costData.length 
       : 0,
+    avgConsumption: costData.length > 0 
+      ? costData.reduce((sum, v) => sum + v.avgConsumption, 0) / costData.length 
+      : 0,
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white">Analyse des Coûts</h1>
+            <p className="text-muted-foreground mt-1">Suivi détaillé et optimisation budgétaire</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <StatCardSkeleton key={i} />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ChartSkeleton />
+          <ChartSkeleton />
+        </div>
+        <ChartSkeleton />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -224,7 +148,7 @@ const Analytics = () => {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="glass-card">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Coût Carburant</CardTitle>
@@ -257,20 +181,32 @@ const Analytics = () => {
             <p className="text-xs text-muted-foreground mt-1">Moyenne flotte</p>
           </CardContent>
         </Card>
+
+        <Card className="glass-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Consommation Moy</CardTitle>
+            <Fuel className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalStats.avgConsumption.toFixed(2)} L/100km</div>
+            <p className="text-xs text-muted-foreground mt-1">Moyenne flotte</p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="glass-card">
           <CardHeader>
             <CardTitle>Évolution mensuelle</CardTitle>
-            <CardDescription>Coûts carburant et maintenance sur 6 mois</CardDescription>
+            <CardDescription>Coûts, distance et consommation sur 6 mois</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis dataKey="month" stroke="rgba(255,255,255,0.5)" />
-                <YAxis stroke="rgba(255,255,255,0.5)" />
+              <YAxis stroke="rgba(255,255,255,0.5)" />
+              <YAxis yAxisId="right" orientation="right" stroke="rgba(255,255,255,0.5)" />
                 <Tooltip 
                   contentStyle={{ background: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.2)' }}
                 />
@@ -331,8 +267,10 @@ const Analytics = () => {
                 contentStyle={{ background: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.2)' }}
               />
               <Legend />
-              <Bar dataKey="totalFuelCost" fill="#0088FE" name="Carburant" />
-              <Bar dataKey="totalMaintenanceCost" fill="#00C49F" name="Maintenance" />
+              <Bar dataKey="totalFuelCost" fill="#0088FE" name="Carburant (TND)" />
+              <Bar dataKey="totalMaintenanceCost" fill="#00C49F" name="Maintenance (TND)" />
+              <Bar dataKey="distancePeriod" fill="#FFBB28" name="Distance (km)" yAxisId="right" />
+              <Bar dataKey="avgConsumption" fill="#FF8042" name="Consommation (L/100km)" yAxisId="right" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>

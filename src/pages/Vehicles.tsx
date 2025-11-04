@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Edit, Trash2, Search } from "lucide-react";
+import { useVehicles, useCreateVehicle, useUpdateVehicle, useDeleteVehicle, Vehicle } from "@/hooks/useVehiclesQuery";
+import { VehicleCardSkeleton } from "@/components/ui/skeleton-loader";
+import { CustomPagination } from "@/components/ui/custom-pagination";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -44,23 +46,17 @@ const vehicleSchema = z.object({
 
 type VehicleFormData = z.infer<typeof vehicleSchema>;
 
-interface Vehicle {
-  id: string;
-  registration: string;
-  make: string;
-  model: string;
-  year?: number;
-  fuel_type?: string;
-  status: string;
-  mileage: number;
-}
-
 const Vehicles = () => {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // React Query hooks
+  const { data, isLoading } = useVehicles({ page: currentPage, limit: 50, search: searchQuery });
+  const createMutation = useCreateVehicle();
+  const updateMutation = useUpdateVehicle();
+  const deleteMutation = useDeleteVehicle();
 
   const form = useForm<VehicleFormData>({
     resolver: zodResolver(vehicleSchema),
@@ -73,73 +69,21 @@ const Vehicles = () => {
     },
   });
 
-  useEffect(() => {
-    loadVehicles();
-    getCurrentUser();
-  }, []);
-
-  const getCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserId(user.id);
-    }
-  };
-
-  const loadVehicles = async () => {
-    const { data, error } = await supabase
-      .from("vehicles")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      toast.error("Erreur lors du chargement des véhicules");
-      return;
-    }
-
-    setVehicles(data || []);
-  };
-
-  const onSubmit = async (data: VehicleFormData) => {
-    if (!userId) {
-      toast.error("Utilisateur non connecté");
-      return;
-    }
-
+  const onSubmit = async (vehicleData: VehicleFormData) => {
     if (editingVehicle) {
-      const { error } = await supabase
-        .from("vehicles")
-        .update(data)
-        .eq("id", editingVehicle.id);
-
-      if (error) {
-        toast.error("Erreur lors de la mise à jour");
-        return;
-      }
-
-      toast.success("Véhicule mis à jour");
+      await updateMutation.mutateAsync({ id: editingVehicle.id, ...vehicleData });
     } else {
-      const { error } = await supabase
-        .from("vehicles")
-        .insert({
-          registration: data.registration,
-          make: data.make,
-          model: data.model,
-          year: data.year,
-          fuel_type: data.fuel_type,
-          status: data.status,
-          mileage: data.mileage,
-          user_id: userId,
-        });
-
-      if (error) {
-        toast.error("Erreur lors de l'ajout");
-        return;
-      }
-
-      toast.success("Véhicule ajouté");
+      await createMutation.mutateAsync({
+        registration: vehicleData.registration,
+        make: vehicleData.make,
+        model: vehicleData.model,
+        year: vehicleData.year,
+        fuel_type: vehicleData.fuel_type,
+        status: vehicleData.status,
+        mileage: vehicleData.mileage,
+      });
     }
 
-    loadVehicles();
     setIsDialogOpen(false);
     setEditingVehicle(null);
     form.reset();
@@ -153,23 +97,12 @@ const Vehicles = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce véhicule ?")) return;
-
-    const { error } = await supabase.from("vehicles").delete().eq("id", id);
-
-    if (error) {
-      toast.error("Erreur lors de la suppression");
-      return;
-    }
-
-    toast.success("Véhicule supprimé");
-    loadVehicles();
+    await deleteMutation.mutateAsync(id);
   };
 
-  const filteredVehicles = vehicles.filter((vehicle) =>
-    `${vehicle.make} ${vehicle.model} ${vehicle.registration}`
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  );
+  const vehicles = data?.vehicles || [];
+  const totalPages = data?.totalPages || 1;
+  const totalItems = data?.total || 0;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -332,8 +265,16 @@ const Vehicles = () => {
       </div>
 
       {/* Vehicles Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredVehicles.map((vehicle, index) => (
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <VehicleCardSkeleton key={i} />
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {vehicles.map((vehicle, index) => (
           <Card
             key={vehicle.id}
             className="glass-card border-0 hover-lift animate-scale-in"
@@ -393,14 +334,24 @@ const Vehicles = () => {
                 </span>
               </div>
             </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {filteredVehicles.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Aucun véhicule trouvé</p>
+            </Card>
+          ))}
         </div>
+
+        {vehicles.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Aucun véhicule trouvé</p>
+          </div>
+        )}
+
+        <CustomPagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          itemsPerPage={50}
+          onPageChange={setCurrentPage}
+        />
+      </>
       )}
     </div>
   );

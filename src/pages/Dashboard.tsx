@@ -1,56 +1,29 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Car, Users, AlertCircle, TrendingUp } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-
-interface Stats {
-  totalVehicles: number;
-  activeVehicles: number;
-  totalDrivers: number;
-  activeDrivers: number;
-}
+import { useDashboardStats, useMonthlyChartData, useDashboardRealtime } from "@/hooks/useDashboardQuery";
+import { DashboardSkeleton } from "@/components/ui/skeleton-loader";
+import { formatCurrency } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 
 const Dashboard = () => {
-  const [stats, setStats] = useState<Stats>({
-    totalVehicles: 0,
-    activeVehicles: 0,
-    totalDrivers: 0,
-    activeDrivers: 0,
+  const queryClient = useQueryClient();
+  const { data: stats, isLoading } = useDashboardStats();
+  const { data: monthlyData = [] } = useMonthlyChartData();
+
+  // Temps réel
+  useDashboardRealtime(() => {
+    queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+    queryClient.invalidateQueries({ queryKey: ["monthly-chart"] });
   });
 
-  useEffect(() => {
-    loadStats();
-  }, []);
-
-  const loadStats = async () => {
-    const [vehiclesResult, driversResult] = await Promise.all([
-      supabase.from("vehicles").select("status", { count: "exact" }),
-      supabase.from("drivers").select("status", { count: "exact" }),
-    ]);
-
-    if (vehiclesResult.data && driversResult.data) {
-      setStats({
-        totalVehicles: vehiclesResult.count || 0,
-        activeVehicles: vehiclesResult.data.filter((v) => v.status === "active").length,
-        totalDrivers: driversResult.count || 0,
-        activeDrivers: driversResult.data.filter((d) => d.status === "active").length,
-      });
-    }
-  };
+  if (isLoading || !stats) {
+    return <DashboardSkeleton />;
+  }
 
   const vehicleStatusData = [
     { name: "Actifs", value: stats.activeVehicles, color: "hsl(var(--success))" },
     { name: "Inactifs", value: stats.totalVehicles - stats.activeVehicles, color: "hsl(var(--muted))" },
-  ];
-
-  const monthlyData = [
-    { month: "Jan", value: 65 },
-    { month: "Fév", value: 75 },
-    { month: "Mar", value: 85 },
-    { month: "Avr", value: 80 },
-    { month: "Mai", value: 90 },
-    { month: "Juin", value: 95 },
   ];
 
   const statCards = [
@@ -70,17 +43,17 @@ const Dashboard = () => {
     },
     {
       title: "Maintenances à venir",
-      value: 5,
-      subtitle: "Ce mois-ci",
+      value: stats.upcomingMaintenance,
+      subtitle: "30 prochains jours",
       icon: AlertCircle,
       gradient: "gradient-warning",
     },
     {
       title: "Coût Carburant",
-      value: "12 450 TND",
-      subtitle: "+8% ce mois",
+      value: formatCurrency(stats.totalFuelCost),
+      subtitle: `${stats.fuelCostChange >= 0 ? '+' : ''}${stats.fuelCostChange}% ce mois`,
       icon: TrendingUp,
-      gradient: "gradient-brand",
+      gradient: stats.fuelCostChange >= 0 ? "gradient-warning" : "gradient-success",
     },
   ];
 
