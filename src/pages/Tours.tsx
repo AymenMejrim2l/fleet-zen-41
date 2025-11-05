@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,8 +31,10 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
 import { format } from "date-fns";
+import { useTours, useCreateTour, useUpdateTour, useDeleteTour } from "@/hooks/useToursQuery";
+import SkeletonLoader from "@/components/ui/skeleton-loader";
+import { CustomPagination } from "@/components/ui/custom-pagination";
 
 const tourSchema = z.object({
   title: z.string().min(1, "Titre requis"),
@@ -48,26 +50,6 @@ const tourSchema = z.object({
 
 type TourFormData = z.infer<typeof tourSchema>;
 
-interface Tour {
-  id: string;
-  title: string;
-  vehicle_id?: string;
-  driver_id?: string;
-  start_date: string;
-  end_date?: string;
-  start_mileage?: number;
-  end_mileage?: number;
-  status: string;
-  notes?: string;
-  vehicles?: {
-    registration: string;
-  };
-  drivers?: {
-    first_name: string;
-    last_name: string;
-  };
-}
-
 interface Vehicle {
   id: string;
   registration: string;
@@ -82,12 +64,16 @@ interface Driver {
 }
 
 const Tours = () => {
-  const [tours, setTours] = useState<Tour[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingTour, setEditingTour] = useState<Tour | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [editingTour, setEditingTour] = useState<any>(null);
+
+  const { data: toursData, isLoading } = useTours({ page: currentPage, limit: 15 });
+  const createTour = useCreateTour();
+  const updateTour = useUpdateTour();
+  const deleteTour = useDeleteTour();
 
   const form = useForm<TourFormData>({
     resolver: zodResolver(tourSchema),
@@ -99,36 +85,9 @@ const Tours = () => {
   });
 
   useEffect(() => {
-    loadTours();
     loadVehicles();
     loadDrivers();
-    getCurrentUser();
   }, []);
-
-  const getCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserId(user.id);
-    }
-  };
-
-  const loadTours = async () => {
-    const { data, error } = await supabase
-      .from("tours")
-      .select(`
-        *,
-        vehicles:vehicle_id (registration),
-        drivers:driver_id (first_name, last_name)
-      `)
-      .order("start_date", { ascending: false });
-
-    if (error) {
-      toast.error("Erreur lors du chargement");
-      return;
-    }
-
-    setTours(data || []);
-  };
 
   const loadVehicles = async () => {
     const { data, error } = await supabase
@@ -136,12 +95,9 @@ const Tours = () => {
       .select("id, registration, make, model")
       .eq("status", "active");
 
-    if (error) {
-      toast.error("Erreur lors du chargement des véhicules");
-      return;
+    if (!error && data) {
+      setVehicles(data);
     }
-
-    setVehicles(data || []);
   };
 
   const loadDrivers = async () => {
@@ -150,55 +106,27 @@ const Tours = () => {
       .select("id, first_name, last_name")
       .eq("status", "active");
 
-    if (error) {
-      toast.error("Erreur lors du chargement des conducteurs");
-      return;
+    if (!error && data) {
+      setDrivers(data);
     }
-
-    setDrivers(data || []);
   };
 
   const onSubmit = async (data: TourFormData) => {
-    if (!userId) {
-      toast.error("Utilisateur non connecté");
-      return;
-    }
-
     if (editingTour) {
-      const { error } = await supabase
-        .from("tours")
-        .update(data)
-        .eq("id", editingTour.id);
-
-      if (error) {
-        toast.error("Erreur lors de la mise à jour");
-        return;
-      }
-
-      toast.success("Tournée mise à jour");
+      updateTour.mutate({ id: editingTour.id, ...data });
     } else {
-      const { error } = await supabase.from("tours").insert({
+      createTour.mutate({
         title: data.title,
-        vehicle_id: data.vehicle_id || null,
-        driver_id: data.driver_id || null,
+        vehicle_id: data.vehicle_id || undefined,
+        driver_id: data.driver_id || undefined,
         start_date: data.start_date,
-        end_date: data.end_date || null,
+        end_date: data.end_date || undefined,
         start_mileage: data.start_mileage,
         end_mileage: data.end_mileage,
         status: data.status,
         notes: data.notes,
-        user_id: userId,
       });
-
-      if (error) {
-        toast.error("Erreur lors de l'ajout");
-        return;
-      }
-
-      toast.success("Tournée ajoutée");
     }
-
-    loadTours();
     setIsDialogOpen(false);
     setEditingTour(null);
     form.reset();
@@ -206,16 +134,7 @@ const Tours = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer cette tournée ?")) return;
-
-    const { error } = await supabase.from("tours").delete().eq("id", id);
-
-    if (error) {
-      toast.error("Erreur lors de la suppression");
-      return;
-    }
-
-    toast.success("Tournée supprimée");
-    loadTours();
+    deleteTour.mutate(id);
   };
 
   const getStatusIcon = (status: string) => {
@@ -239,6 +158,8 @@ const Tours = () => {
         return "Planifiée";
     }
   };
+
+  const tours = toursData?.tours || [];
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -448,92 +369,106 @@ const Tours = () => {
       </div>
 
       {/* Tours List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {tours.map((tour, index) => (
-          <Card
-            key={tour.id}
-            className="glass-card border-0 hover-lift animate-scale-in"
-            style={{ animationDelay: `${index * 0.05}s` }}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(tour.status)}
-                  <span className="text-sm truncate">{tour.title}</span>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => {
-                      setEditingTour(tour);
-                      form.reset(tour);
-                      setIsDialogOpen(true);
-                    }}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleDelete(tour.id)}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Statut</span>
-                <span className="font-medium">{getStatusLabel(tour.status)}</span>
-              </div>
-              {tour.vehicles && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Véhicule</span>
-                  <span className="font-medium">{tour.vehicles.registration}</span>
-                </div>
-              )}
-              {tour.drivers && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Conducteur</span>
-                  <span className="font-medium">
-                    {tour.drivers.first_name} {tour.drivers.last_name}
-                  </span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Début</span>
-                <span className="font-medium">
-                  {format(new Date(tour.start_date), "dd/MM/yyyy")}
-                </span>
-              </div>
-              {tour.end_date && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Fin</span>
-                  <span className="font-medium">
-                    {format(new Date(tour.end_date), "dd/MM/yyyy")}
-                  </span>
-                </div>
-              )}
-              {tour.start_mileage && tour.end_mileage && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Distance</span>
-                  <span className="font-medium">
-                    {(tour.end_mileage - tour.start_mileage).toLocaleString()} km
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {isLoading ? (
+        <SkeletonLoader count={6} />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {tours.map((tour, index) => (
+              <Card
+                key={tour.id}
+                className="glass-card border-0 hover-lift animate-scale-in"
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(tour.status)}
+                      <span className="text-sm truncate">{tour.title}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingTour(tour);
+                          form.reset(tour);
+                          setIsDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDelete(tour.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Statut</span>
+                    <span className="font-medium">{getStatusLabel(tour.status)}</span>
+                  </div>
+                  {tour.vehicles && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Véhicule</span>
+                      <span className="font-medium">{tour.vehicles.registration}</span>
+                    </div>
+                  )}
+                  {tour.drivers && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Conducteur</span>
+                      <span className="font-medium">
+                        {tour.drivers.first_name} {tour.drivers.last_name}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Début</span>
+                    <span className="font-medium">
+                      {format(new Date(tour.start_date), "dd/MM/yyyy")}
+                    </span>
+                  </div>
+                  {tour.end_date && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Fin</span>
+                      <span className="font-medium">
+                        {format(new Date(tour.end_date), "dd/MM/yyyy")}
+                      </span>
+                    </div>
+                  )}
+                  {tour.start_mileage && tour.end_mileage && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Distance</span>
+                      <span className="font-medium">
+                        {(tour.end_mileage - tour.start_mileage).toLocaleString()} km
+                      </span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      {tours.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Aucune tournée enregistrée</p>
-        </div>
+          {tours.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Aucune tournée enregistrée</p>
+            </div>
+          )}
+
+          <CustomPagination
+            currentPage={currentPage}
+            totalPages={toursData?.totalPages || 1}
+            onPageChange={setCurrentPage}
+            totalItems={toursData?.total}
+            itemsPerPage={15}
+          />
+        </>
       )}
     </div>
   );

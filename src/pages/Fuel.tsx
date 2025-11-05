@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Edit, Trash2, Fuel as FuelIcon, TrendingUp } from "lucide-react";
@@ -30,11 +29,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useFuelRecords, useCreateFuelRecord, useUpdateFuelRecord, useDeleteFuelRecord } from "@/hooks/useFuelQuery";
+import { useVehicles } from "@/hooks/useVehiclesQuery";
+import SkeletonLoader from "@/components/ui/skeleton-loader";
+import { CustomPagination } from "@/components/ui/custom-pagination";
 
 const fuelSchema = z.object({
   vehicle_id: z.string().min(1, "Véhicule requis"),
@@ -49,36 +50,16 @@ const fuelSchema = z.object({
 
 type FuelFormData = z.infer<typeof fuelSchema>;
 
-interface FuelRecord {
-  id: string;
-  vehicle_id: string;
-  date: string;
-  fuel_type?: string;
-  volume: number;
-  cost: number;
-  mileage: number;
-  station?: string;
-  vehicles?: {
-    registration: string;
-    make: string;
-    model: string;
-  };
-}
-
-interface Vehicle {
-  id: string;
-  registration: string;
-  make: string;
-  model: string;
-}
-
 const Fuel = () => {
-  const [fuelRecords, setFuelRecords] = useState<FuelRecord[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingRecord, setEditingRecord] = useState<FuelRecord | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [stats, setStats] = useState({ totalCost: 0, totalVolume: 0, avgConsumption: 0 });
+  const [editingRecord, setEditingRecord] = useState<any>(null);
+
+  const { data: fuelData, isLoading: isLoadingFuel } = useFuelRecords({ page: currentPage, limit: 15 });
+  const { data: vehiclesData } = useVehicles({ limit: 100 });
+  const createFuel = useCreateFuelRecord();
+  const updateFuel = useUpdateFuelRecord();
+  const deleteFuel = useDeleteFuelRecord();
 
   const form = useForm<FuelFormData>({
     resolver: zodResolver(fuelSchema),
@@ -91,78 +72,11 @@ const Fuel = () => {
     },
   });
 
-  useEffect(() => {
-    loadFuelRecords();
-    loadVehicles();
-    getCurrentUser();
-  }, []);
-
-  const getCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserId(user.id);
-    }
-  };
-
-  const loadFuelRecords = async () => {
-    const { data, error } = await supabase
-      .from("fuel")
-      .select(`
-        *,
-        vehicles:vehicle_id (registration, make, model)
-      `)
-      .order("date", { ascending: false });
-
-    if (error) {
-      toast.error("Erreur lors du chargement");
-      return;
-    }
-
-    setFuelRecords(data || []);
-    calculateStats(data || []);
-  };
-
-  const calculateStats = (records: FuelRecord[]) => {
-    const totalCost = records.reduce((sum, r) => sum + Number(r.cost), 0);
-    const totalVolume = records.reduce((sum, r) => sum + Number(r.volume), 0);
-    const avgConsumption = totalVolume > 0 ? totalCost / totalVolume : 0;
-    setStats({ totalCost, totalVolume, avgConsumption });
-  };
-
-  const loadVehicles = async () => {
-    const { data, error } = await supabase
-      .from("vehicles")
-      .select("id, registration, make, model")
-      .eq("status", "active");
-
-    if (error) {
-      toast.error("Erreur lors du chargement des véhicules");
-      return;
-    }
-
-    setVehicles(data || []);
-  };
-
   const onSubmit = async (data: FuelFormData) => {
-    if (!userId) {
-      toast.error("Utilisateur non connecté");
-      return;
-    }
-
     if (editingRecord) {
-      const { error } = await supabase
-        .from("fuel")
-        .update(data)
-        .eq("id", editingRecord.id);
-
-      if (error) {
-        toast.error("Erreur lors de la mise à jour");
-        return;
-      }
-
-      toast.success("Ravitaillement mis à jour");
+      updateFuel.mutate({ id: editingRecord.id, ...data });
     } else {
-      const { error } = await supabase.from("fuel").insert({
+      createFuel.mutate({
         vehicle_id: data.vehicle_id,
         date: data.date,
         fuel_type: data.fuel_type,
@@ -171,18 +85,8 @@ const Fuel = () => {
         mileage: data.mileage,
         station: data.station,
         notes: data.notes,
-        user_id: userId,
       });
-
-      if (error) {
-        toast.error("Erreur lors de l'ajout");
-        return;
-      }
-
-      toast.success("Ravitaillement ajouté");
     }
-
-    loadFuelRecords();
     setIsDialogOpen(false);
     setEditingRecord(null);
     form.reset();
@@ -190,17 +94,19 @@ const Fuel = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce ravitaillement ?")) return;
-
-    const { error } = await supabase.from("fuel").delete().eq("id", id);
-
-    if (error) {
-      toast.error("Erreur lors de la suppression");
-      return;
-    }
-
-    toast.success("Ravitaillement supprimé");
-    loadFuelRecords();
+    deleteFuel.mutate(id);
   };
+
+  const fuelRecords = fuelData?.records || [];
+  const vehicles = vehiclesData?.vehicles || [];
+
+  // Calculate stats
+  const stats = {
+    totalCost: fuelRecords.reduce((sum, r) => sum + Number(r.cost), 0),
+    totalVolume: fuelRecords.reduce((sum, r) => sum + Number(r.volume), 0),
+    avgConsumption: 0,
+  };
+  stats.avgConsumption = stats.totalVolume > 0 ? stats.totalCost / stats.totalVolume : 0;
 
   const chartData = fuelRecords
     .slice(0, 10)
@@ -434,73 +340,87 @@ const Fuel = () => {
       )}
 
       {/* Records List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {fuelRecords.map((record, index) => (
-          <Card
-            key={record.id}
-            className="glass-card border-0 hover-lift animate-scale-in"
-            style={{ animationDelay: `${index * 0.05}s` }}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="text-sm">{record.vehicles?.registration}</span>
-                <div className="flex gap-2">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => {
-                      setEditingRecord(record);
-                      form.reset(record);
-                      setIsDialogOpen(true);
-                    }}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleDelete(record.id)}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Date</span>
-                <span className="font-medium">
-                  {format(new Date(record.date), "dd/MM/yyyy")}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Volume</span>
-                <span className="font-medium">{Number(record.volume).toFixed(2)} L</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Coût</span>
-                <span className="font-medium">{formatCurrency(record.cost)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Kilométrage</span>
-                <span className="font-medium">{record.mileage.toLocaleString()} km</span>
-              </div>
-              {record.station && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Station</span>
-                  <span className="font-medium">{record.station}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {isLoadingFuel ? (
+        <SkeletonLoader count={6} />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {fuelRecords.map((record, index) => (
+              <Card
+                key={record.id}
+                className="glass-card border-0 hover-lift animate-scale-in"
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <span className="text-sm">{record.vehicles?.registration}</span>
+                    <div className="flex gap-2">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingRecord(record);
+                          form.reset(record);
+                          setIsDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDelete(record.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Date</span>
+                    <span className="font-medium">
+                      {format(new Date(record.date), "dd/MM/yyyy")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Volume</span>
+                    <span className="font-medium">{Number(record.volume).toFixed(2)} L</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Coût</span>
+                    <span className="font-medium">{formatCurrency(record.cost)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Kilométrage</span>
+                    <span className="font-medium">{record.mileage.toLocaleString()} km</span>
+                  </div>
+                  {record.station && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Station</span>
+                      <span className="font-medium">{record.station}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      {fuelRecords.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Aucun ravitaillement enregistré</p>
-        </div>
+          {fuelRecords.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Aucun ravitaillement enregistré</p>
+            </div>
+          )}
+
+          <CustomPagination
+            currentPage={currentPage}
+            totalPages={fuelData?.totalPages || 1}
+            onPageChange={setCurrentPage}
+            totalItems={fuelData?.total}
+            itemsPerPage={15}
+          />
+        </>
       )}
     </div>
   );

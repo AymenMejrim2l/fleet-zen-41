@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Edit, Trash2, Wrench, CheckCircle, Clock } from "lucide-react";
@@ -31,9 +30,12 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
+import { useMaintenanceRecords, useCreateMaintenance, useUpdateMaintenance, useDeleteMaintenance } from "@/hooks/useMaintenanceQuery";
+import { useVehicles } from "@/hooks/useVehiclesQuery";
+import SkeletonLoader from "@/components/ui/skeleton-loader";
+import { CustomPagination } from "@/components/ui/custom-pagination";
 
 const maintenanceSchema = z.object({
   vehicle_id: z.string().min(1, "Véhicule requis"),
@@ -50,38 +52,16 @@ const maintenanceSchema = z.object({
 
 type MaintenanceFormData = z.infer<typeof maintenanceSchema>;
 
-interface Maintenance {
-  id: string;
-  vehicle_id: string;
-  type: string;
-  description?: string;
-  cost?: number;
-  provider?: string;
-  status: string;
-  scheduled_date?: string;
-  completed_date?: string;
-  mileage?: number;
-  notes?: string;
-  vehicles?: {
-    registration: string;
-    make: string;
-    model: string;
-  };
-}
-
-interface Vehicle {
-  id: string;
-  registration: string;
-  make: string;
-  model: string;
-}
-
 const Maintenance = () => {
-  const [maintenances, setMaintenances] = useState<Maintenance[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingMaintenance, setEditingMaintenance] = useState<Maintenance | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [editingMaintenance, setEditingMaintenance] = useState<any>(null);
+
+  const { data: maintenanceData, isLoading } = useMaintenanceRecords({ page: currentPage, limit: 15 });
+  const { data: vehiclesData } = useVehicles({ limit: 100 });
+  const createMaintenance = useCreateMaintenance();
+  const updateMaintenance = useUpdateMaintenance();
+  const deleteMaintenance = useDeleteMaintenance();
 
   const form = useForm<MaintenanceFormData>({
     resolver: zodResolver(maintenanceSchema),
@@ -92,70 +72,11 @@ const Maintenance = () => {
     },
   });
 
-  useEffect(() => {
-    loadMaintenances();
-    loadVehicles();
-    getCurrentUser();
-  }, []);
-
-  const getCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserId(user.id);
-    }
-  };
-
-  const loadMaintenances = async () => {
-    const { data, error } = await supabase
-      .from("maintenance")
-      .select(`
-        *,
-        vehicles:vehicle_id (registration, make, model)
-      `)
-      .order("scheduled_date", { ascending: false });
-
-    if (error) {
-      toast.error("Erreur lors du chargement");
-      return;
-    }
-
-    setMaintenances(data || []);
-  };
-
-  const loadVehicles = async () => {
-    const { data, error } = await supabase
-      .from("vehicles")
-      .select("id, registration, make, model")
-      .eq("status", "active");
-
-    if (error) {
-      toast.error("Erreur lors du chargement des véhicules");
-      return;
-    }
-
-    setVehicles(data || []);
-  };
-
   const onSubmit = async (data: MaintenanceFormData) => {
-    if (!userId) {
-      toast.error("Utilisateur non connecté");
-      return;
-    }
-
     if (editingMaintenance) {
-      const { error } = await supabase
-        .from("maintenance")
-        .update(data)
-        .eq("id", editingMaintenance.id);
-
-      if (error) {
-        toast.error("Erreur lors de la mise à jour");
-        return;
-      }
-
-      toast.success("Maintenance mise à jour");
+      updateMaintenance.mutate({ id: editingMaintenance.id, ...data });
     } else {
-      const { error } = await supabase.from("maintenance").insert({
+      createMaintenance.mutate({
         vehicle_id: data.vehicle_id,
         type: data.type,
         description: data.description,
@@ -166,18 +87,8 @@ const Maintenance = () => {
         completed_date: data.completed_date,
         mileage: data.mileage,
         notes: data.notes,
-        user_id: userId,
       });
-
-      if (error) {
-        toast.error("Erreur lors de l'ajout");
-        return;
-      }
-
-      toast.success("Maintenance ajoutée");
     }
-
-    loadMaintenances();
     setIsDialogOpen(false);
     setEditingMaintenance(null);
     form.reset();
@@ -185,16 +96,7 @@ const Maintenance = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer cette maintenance ?")) return;
-
-    const { error } = await supabase.from("maintenance").delete().eq("id", id);
-
-    if (error) {
-      toast.error("Erreur lors de la suppression");
-      return;
-    }
-
-    toast.success("Maintenance supprimée");
-    loadMaintenances();
+    deleteMaintenance.mutate(id);
   };
 
   const getStatusIcon = (status: string) => {
@@ -218,6 +120,9 @@ const Maintenance = () => {
         return "Planifiée";
     }
   };
+
+  const maintenances = maintenanceData?.records || [];
+  const vehicles = vehiclesData?.vehicles || [];
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -396,91 +301,105 @@ const Maintenance = () => {
       </div>
 
       {/* Maintenances List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {maintenances.map((maintenance, index) => (
-          <Card
-            key={maintenance.id}
-            className="glass-card border-0 hover-lift animate-scale-in"
-            style={{ animationDelay: `${index * 0.05}s` }}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(maintenance.status)}
-                  <span className="text-sm">{maintenance.vehicles?.registration}</span>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => {
-                      setEditingMaintenance(maintenance);
-                      form.reset({
-                        vehicle_id: maintenance.vehicle_id,
-                        type: maintenance.type,
-                        description: maintenance.description || "",
-                        cost: maintenance.cost ? Number(maintenance.cost) : undefined,
-                        provider: maintenance.provider || "",
-                        status: maintenance.status,
-                        scheduled_date: maintenance.scheduled_date || "",
-                        completed_date: maintenance.completed_date || "",
-                        mileage: maintenance.mileage ? Number(maintenance.mileage) : undefined,
-                        notes: maintenance.notes || "",
-                      });
-                      setIsDialogOpen(true);
-                    }}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => handleDelete(maintenance.id)}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Type</span>
-                <span className="font-medium capitalize">{maintenance.type}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Statut</span>
-                <span className="font-medium">{getStatusLabel(maintenance.status)}</span>
-              </div>
-              {maintenance.scheduled_date && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Date prévue</span>
-                  <span className="font-medium">
-                    {format(new Date(maintenance.scheduled_date), "dd/MM/yyyy")}
-                  </span>
-                </div>
-              )}
-              {maintenance.cost && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Coût</span>
-                  <span className="font-medium">{formatCurrency(maintenance.cost)}</span>
-                </div>
-              )}
-              {maintenance.provider && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Fournisseur</span>
-                  <span className="font-medium">{maintenance.provider}</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {isLoading ? (
+        <SkeletonLoader count={6} />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {maintenances.map((maintenance, index) => (
+              <Card
+                key={maintenance.id}
+                className="glass-card border-0 hover-lift animate-scale-in"
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {getStatusIcon(maintenance.status)}
+                      <span className="text-sm">{maintenance.vehicles?.registration}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingMaintenance(maintenance);
+                          form.reset({
+                            vehicle_id: maintenance.vehicle_id,
+                            type: maintenance.type,
+                            description: maintenance.description || "",
+                            cost: maintenance.cost ? Number(maintenance.cost) : undefined,
+                            provider: maintenance.provider || "",
+                            status: maintenance.status,
+                            scheduled_date: maintenance.scheduled_date || "",
+                            completed_date: maintenance.completed_date || "",
+                            mileage: maintenance.mileage ? Number(maintenance.mileage) : undefined,
+                            notes: maintenance.notes || "",
+                          });
+                          setIsDialogOpen(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => handleDelete(maintenance.id)}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Type</span>
+                    <span className="font-medium capitalize">{maintenance.type}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Statut</span>
+                    <span className="font-medium">{getStatusLabel(maintenance.status)}</span>
+                  </div>
+                  {maintenance.scheduled_date && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Date prévue</span>
+                      <span className="font-medium">
+                        {format(new Date(maintenance.scheduled_date), "dd/MM/yyyy")}
+                      </span>
+                    </div>
+                  )}
+                  {maintenance.cost && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Coût</span>
+                      <span className="font-medium">{formatCurrency(maintenance.cost)}</span>
+                    </div>
+                  )}
+                  {maintenance.provider && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Fournisseur</span>
+                      <span className="font-medium">{maintenance.provider}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      {maintenances.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Aucune maintenance enregistrée</p>
-        </div>
+          {maintenances.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Aucune maintenance enregistrée</p>
+            </div>
+          )}
+
+          <CustomPagination
+            currentPage={currentPage}
+            totalPages={maintenanceData?.totalPages || 1}
+            onPageChange={setCurrentPage}
+            totalItems={maintenanceData?.total}
+            itemsPerPage={15}
+          />
+        </>
       )}
     </div>
   );

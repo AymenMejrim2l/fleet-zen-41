@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,8 +31,10 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
+import { useDocuments, useCreateDocument, useUpdateDocument, useDeleteDocument } from "@/hooks/useDocumentsQuery";
+import SkeletonLoader from "@/components/ui/skeleton-loader";
+import { CustomPagination } from "@/components/ui/custom-pagination";
 
 const documentSchema = z.object({
   entity_type: z.string().min(1, "Type d'entité requis"),
@@ -47,25 +49,6 @@ const documentSchema = z.object({
 
 type DocumentFormData = z.infer<typeof documentSchema>;
 
-interface Document {
-  id: string;
-  entity_type: string;
-  entity_id: string;
-  document_type: string;
-  title: string;
-  issue_date?: string;
-  expiry_date?: string;
-  file_url?: string;
-  notes?: string;
-  vehicles?: {
-    registration: string;
-  };
-  drivers?: {
-    first_name: string;
-    last_name: string;
-  };
-}
-
 interface Entity {
   id: string;
   label: string;
@@ -73,12 +56,16 @@ interface Entity {
 }
 
 const Documents = () => {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [entities, setEntities] = useState<Entity[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingDocument, setEditingDocument] = useState<Document | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [editingDocument, setEditingDocument] = useState<any>(null);
   const [selectedEntityType, setSelectedEntityType] = useState<string>("");
+
+  const { data: documentsData, isLoading } = useDocuments({ page: currentPage, limit: 15 });
+  const createDocument = useCreateDocument();
+  const updateDocument = useUpdateDocument();
+  const deleteDocument = useDeleteDocument();
 
   const form = useForm<DocumentFormData>({
     resolver: zodResolver(documentSchema),
@@ -91,36 +78,10 @@ const Documents = () => {
   });
 
   useEffect(() => {
-    loadDocuments();
-    getCurrentUser();
-  }, []);
-
-  useEffect(() => {
     if (selectedEntityType) {
       loadEntities(selectedEntityType);
     }
   }, [selectedEntityType]);
-
-  const getCurrentUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserId(user.id);
-    }
-  };
-
-  const loadDocuments = async () => {
-    const { data, error } = await supabase
-      .from("documents")
-      .select("*")
-      .order("expiry_date", { ascending: true });
-
-    if (error) {
-      toast.error("Erreur lors du chargement");
-      return;
-    }
-
-    setDocuments(data || []);
-  };
 
   const loadEntities = async (entityType: string) => {
     if (entityType === "vehicle") {
@@ -155,25 +116,10 @@ const Documents = () => {
   };
 
   const onSubmit = async (data: DocumentFormData) => {
-    if (!userId) {
-      toast.error("Utilisateur non connecté");
-      return;
-    }
-
     if (editingDocument) {
-      const { error } = await supabase
-        .from("documents")
-        .update(data)
-        .eq("id", editingDocument.id);
-
-      if (error) {
-        toast.error("Erreur lors de la mise à jour");
-        return;
-      }
-
-      toast.success("Document mis à jour");
+      updateDocument.mutate({ id: editingDocument.id, ...data });
     } else {
-      const { error } = await supabase.from("documents").insert({
+      createDocument.mutate({
         entity_type: data.entity_type,
         entity_id: data.entity_id,
         document_type: data.document_type,
@@ -182,18 +128,8 @@ const Documents = () => {
         expiry_date: data.expiry_date,
         file_url: data.file_url,
         notes: data.notes,
-        user_id: userId,
       });
-
-      if (error) {
-        toast.error("Erreur lors de l'ajout");
-        return;
-      }
-
-      toast.success("Document ajouté");
     }
-
-    loadDocuments();
     setIsDialogOpen(false);
     setEditingDocument(null);
     form.reset();
@@ -201,16 +137,7 @@ const Documents = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce document ?")) return;
-
-    const { error } = await supabase.from("documents").delete().eq("id", id);
-
-    if (error) {
-      toast.error("Erreur lors de la suppression");
-      return;
-    }
-
-    toast.success("Document supprimé");
-    loadDocuments();
+    deleteDocument.mutate(id);
   };
 
   const getExpiryStatus = (expiryDate?: string) => {
@@ -226,6 +153,8 @@ const Documents = () => {
       return { icon: CheckCircle, color: "text-success", label: "Valide" };
     }
   };
+
+  const documents = documentsData?.documents || [];
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -419,87 +348,101 @@ const Documents = () => {
       </div>
 
       {/* Documents List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {documents.map((doc, index) => {
-          const expiryStatus = getExpiryStatus(doc.expiry_date);
-          const Icon = expiryStatus.icon;
+      {isLoading ? (
+        <SkeletonLoader count={6} />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {documents.map((doc, index) => {
+              const expiryStatus = getExpiryStatus(doc.expiry_date);
+              const Icon = expiryStatus.icon;
 
-          return (
-            <Card
-              key={doc.id}
-              className="glass-card border-0 hover-lift animate-scale-in"
-              style={{ animationDelay: `${index * 0.05}s` }}
-            >
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Icon className={`h-5 w-5 ${expiryStatus.color}`} />
-                    <span className="text-sm truncate">{doc.title}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => {
-                        setEditingDocument(doc);
-                        form.reset(doc);
-                        setIsDialogOpen(true);
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleDelete(doc.id)}
-                      className="text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Type</span>
-                  <span className="font-medium capitalize">{doc.document_type}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Statut</span>
-                  <span className={`font-medium ${expiryStatus.color}`}>
-                    {expiryStatus.label}
-                  </span>
-                </div>
-                {doc.expiry_date && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Expire le</span>
-                    <span className="font-medium">
-                      {format(new Date(doc.expiry_date), "dd/MM/yyyy")}
-                    </span>
-                  </div>
-                )}
-                {doc.file_url && (
-                  <div className="mt-2">
-                    <a
-                      href={doc.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline"
-                    >
-                      Voir le document →
-                    </a>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+              return (
+                <Card
+                  key={doc.id}
+                  className="glass-card border-0 hover-lift animate-scale-in"
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icon className={`h-5 w-5 ${expiryStatus.color}`} />
+                        <span className="text-sm truncate">{doc.title}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingDocument(doc);
+                            form.reset(doc);
+                            setIsDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleDelete(doc.id)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Type</span>
+                      <span className="font-medium capitalize">{doc.document_type}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Statut</span>
+                      <span className={`font-medium ${expiryStatus.color}`}>
+                        {expiryStatus.label}
+                      </span>
+                    </div>
+                    {doc.expiry_date && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Expire le</span>
+                        <span className="font-medium">
+                          {format(new Date(doc.expiry_date), "dd/MM/yyyy")}
+                        </span>
+                      </div>
+                    )}
+                    {doc.file_url && (
+                      <div className="mt-2">
+                        <a
+                          href={doc.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline"
+                        >
+                          Voir le document →
+                        </a>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
 
-      {documents.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Aucun document enregistré</p>
-        </div>
+          {documents.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Aucun document enregistré</p>
+            </div>
+          )}
+
+          <CustomPagination
+            currentPage={currentPage}
+            totalPages={documentsData?.totalPages || 1}
+            onPageChange={setCurrentPage}
+            totalItems={documentsData?.total}
+            itemsPerPage={15}
+          />
+        </>
       )}
     </div>
   );
