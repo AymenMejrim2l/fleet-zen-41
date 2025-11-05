@@ -83,3 +83,19 @@ export const DashboardSkeleton = () => (
     </div>
   </div>
 );
+
+interface SkeletonLoaderProps {
+  count?: number;
+}
+
+const SkeletonLoader = ({ count = 3 }: SkeletonLoaderProps) => {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {[...Array(count)].map((_, i) => (
+        <VehicleCardSkeleton key={i} />
+      ))}
+    </div>
+  );
+};
+
+export default SkeletonLoader;
