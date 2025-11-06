@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, Car, Users, LogOut, Wrench, Fuel, FileText, MapPin, ClipboardCheck, BarChart3, Shield, Bell, Calendar, TrendingUp, Menu, Plus } from "lucide-react";
+import { Home, Car, Users, LogOut, Wrench, Fuel, FileText, MapPin, ClipboardCheck, BarChart3, Shield, Bell, Calendar, TrendingUp, Menu, Plus, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,6 +56,7 @@ const Layout = ({ children }: LayoutProps) => {
     { path: "/planning", icon: Calendar, label: "Planning", resource: null },
     { path: "/analytics", icon: TrendingUp, label: "Analytics", resource: null },
     { path: "/notifications", icon: Bell, label: "Notifications", resource: null },
+    { path: "/alerts", icon: AlertTriangle, label: "Alertes", resource: null },
     ...(isAdmin ? [{ path: "/admin", icon: Shield, label: "Administration", resource: null }] : []),
   ];
 
